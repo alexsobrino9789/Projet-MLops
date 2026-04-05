@@ -3,4 +3,6 @@ __pycache__/
 MLruns/*
 !MLruns/.gitkeep
 mlflow.db
-Models/
+Models/.idea/
+anaconda_projects/
+venv_ml/
