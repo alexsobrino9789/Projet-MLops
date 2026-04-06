@@ -3,6 +3,12 @@ import pandas as pd
 import joblib
 import numpy as np
 import matplotlib.pyplot as plt
+import sys
+import os
+
+# ── Ajout du chemin src pour les imports ──
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
+from preprocessing import feature_engineering, encoder_donnees
 
 # ── Config page ──
 st.set_page_config(
@@ -65,22 +71,27 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
-# ── Chargement ──
-MODEL_PATH  = "/Users/ivanwinograd/IdeaProjects/Personnel/MLOps/Projet-MLops/src/Models/model.pkl"
-SCALER_PATH = "/Users/ivanwinograd/IdeaProjects/Personnel/MLOps/Projet-MLops/src/Models/scaler.pkl"
-DATA_PATH   = "/Users/ivanwinograd/IdeaProjects/Personnel/MLOps/Projet-MLops/Data/Loan_Data.csv"
+# ── Chargement modèle et scaler ──
+MODEL_PATH  = "Models/model.pkl"
+SCALER_PATH = "Models/scaler.pkl"
+DATA_PATH   = "Data/Loan_Data.csv"
 
 model  = joblib.load(MODEL_PATH)
 scaler = joblib.load(SCALER_PATH)
+
+# Colonnes attendues par le scaler (sauvegardées à l'entraînement)
+MODEL_FEATURES = list(scaler.feature_names_in_)
 
 @st.cache_data
 def load_data():
     return pd.read_csv(DATA_PATH)
 
-df       = load_data()
-features = ["credit_lines_outstanding", "loan_amt_outstanding",
-            "total_debt_outstanding", "income", "years_employed", "fico_score"]
-labels   = {
+df = load_data()
+
+# Features de base pour affichage
+BASE_FEATURES = ["credit_lines_outstanding", "loan_amt_outstanding",
+                 "total_debt_outstanding", "income", "years_employed", "fico_score"]
+labels = {
     "credit_lines_outstanding": "Lignes de crédit",
     "loan_amt_outstanding"    : "Prêt restant",
     "total_debt_outstanding"  : "Dette totale",
@@ -88,8 +99,8 @@ labels   = {
     "years_employed"          : "Années d'emploi",
     "fico_score"              : "FICO Score"
 }
-moyennes = df.groupby("default")[features].mean()
-pop_mean = df[features].mean()
+moyennes = df.groupby("default")[BASE_FEATURES].mean()
+pop_mean = df[BASE_FEATURES].mean()
 
 # ── Sidebar ──
 with st.sidebar:
@@ -97,10 +108,10 @@ with st.sidebar:
     st.markdown("---")
     st.header("🧾 Informations Client")
 
-    credit_lines_outstanding = st.number_input("Lignes de crédit actives",    min_value=0, value=2,     help="Nombre de lignes de crédit en cours")
-    loan_amt_outstanding     = st.number_input("Montant du prêt restant (€)", min_value=0, value=10000, help="Capital restant dû sur le prêt")
-    total_debt_outstanding   = st.number_input("Dette totale (€)",            min_value=0, value=15000, help="Ensemble des dettes du client")
-    income                   = st.number_input("Revenu annuel (€)",           min_value=0, value=50000, help="Revenu annuel brut")
+    credit_lines_outstanding = st.number_input("Lignes de crédit actives",    min_value=0, value=2,      help="Nombre de lignes de crédit en cours")
+    loan_amt_outstanding     = st.number_input("Montant du prêt restant (€)", min_value=0, value=10000,  help="Capital restant dû sur le prêt")
+    total_debt_outstanding   = st.number_input("Dette totale (€)",            min_value=0, value=15000,  help="Ensemble des dettes du client")
+    income                   = st.number_input("Revenu annuel (€)",           min_value=1, value=50000,  help="Revenu annuel brut")
     years_employed           = st.number_input("Années d'emploi",             min_value=0, max_value=50, value=5, help="Ancienneté dans l'emploi actuel")
     fico_score               = st.number_input("FICO Score",                  min_value=300, max_value=850, value=650, help="Score de crédit (300 = très risqué, 850 = excellent)")
 
@@ -126,16 +137,38 @@ st.markdown("""
 """, unsafe_allow_html=True)
 st.markdown("---")
 
-client = {
-    "customer_id"              : 0,
-    "credit_lines_outstanding" : credit_lines_outstanding,
-    "loan_amt_outstanding"     : loan_amt_outstanding,
-    "total_debt_outstanding"   : total_debt_outstanding,
-    "income"                   : income,
-    "years_employed"           : years_employed,
-    "fico_score"               : fico_score
-}
-data        = pd.DataFrame([client])
+
+def preparer_client(credit_lines, loan_amt, total_debt, income_val, years_emp, fico):
+    """Applique le même pipeline que preprocessing sur les données d'un client."""
+    client = {
+        "credit_lines_outstanding": credit_lines,
+        "loan_amt_outstanding"    : loan_amt,
+        "total_debt_outstanding"  : total_debt,
+        "income"                  : income_val,
+        "years_employed"          : years_emp,
+        "fico_score"              : fico,
+    }
+    data = pd.DataFrame([client])
+
+    # Appliquer feature_engineering (mêmes features que l'entraînement)
+    data = feature_engineering(data)
+
+    # Encoder (get_dummies)
+    data = encoder_donnees(data)
+
+    # Aligner les colonnes avec celles du scaler
+    for col in MODEL_FEATURES:
+        if col not in data.columns:
+            data[col] = 0
+    data = data[MODEL_FEATURES]
+
+    return data
+
+
+# Préparer les données client
+data        = preparer_client(credit_lines_outstanding, loan_amt_outstanding,
+                               total_debt_outstanding, income,
+                               years_employed, fico_score)
 data_scaled = scaler.transform(data)
 
 if predict_btn:
@@ -149,10 +182,15 @@ if predict_btn:
     else:
         niveau, css_class, emoji = "ÉLEVÉ", "high", "🔴"
 
-    # ── Percentile ──
-    df_scored = df[features].copy()
-    df_scored.insert(0, "customer_id", 0)
-    scores_pop = model.predict_proba(scaler.transform(df_scored))[:, 1]
+    # ── Percentile (sur les features de base) ──
+    df_pop = df[BASE_FEATURES].copy()
+    df_pop = feature_engineering(df_pop)
+    df_pop = encoder_donnees(df_pop)
+    for col in MODEL_FEATURES:
+        if col not in df_pop.columns:
+            df_pop[col] = 0
+    df_pop = df_pop[MODEL_FEATURES]
+    scores_pop = model.predict_proba(scaler.transform(df_pop))[:, 1]
     percentile = int(np.mean(scores_pop <= proba) * 100)
 
     # ── Métriques + badge ──
@@ -173,8 +211,8 @@ if predict_btn:
     ax_j.set_facecolor(BG)
 
     color = "#2ecc71" if proba < 0.3 else AMBER if proba < 0.6 else "#e74c3c"
-    ax_j.barh([""], [proba],     color=color,    height=0.5, zorder=2)
-    ax_j.barh([""], [1 - proba], left=[proba],   color="#e0d7f7", height=0.5, zorder=2)
+    ax_j.barh([""], [proba],     color=color,   height=0.5, zorder=2)
+    ax_j.barh([""], [1 - proba], left=[proba],  color="#e0d7f7", height=0.5, zorder=2)
     ax_j.axvline(0.3, color="#2ecc71", linestyle=":", linewidth=1.2, zorder=3)
     ax_j.axvline(0.6, color=AMBER,     linestyle=":", linewidth=1.2, zorder=3)
     ax_j.axvline(0.5, color=VIOLET,    linestyle="--", linewidth=1,  zorder=3, alpha=0.5)
@@ -196,11 +234,13 @@ if predict_btn:
         st.subheader("📊 Profil client vs population")
         st.caption("Valeurs normalisées en % par rapport à la moyenne globale (100% = moyenne)")
 
-        client_norm     = [client[f] / pop_mean[f] * 100 for f in features]
-        default_norm    = [moyennes.loc[1, f] / pop_mean[f] * 100 for f in features]
-        no_default_norm = [moyennes.loc[0, f] / pop_mean[f] * 100 for f in features]
+        client_vals     = [credit_lines_outstanding, loan_amt_outstanding,
+                           total_debt_outstanding, income, years_employed, fico_score]
+        client_norm     = [v / pop_mean[f] * 100 for v, f in zip(client_vals, BASE_FEATURES)]
+        default_norm    = [moyennes.loc[1, f] / pop_mean[f] * 100 for f in BASE_FEATURES]
+        no_default_norm = [moyennes.loc[0, f] / pop_mean[f] * 100 for f in BASE_FEATURES]
 
-        x     = np.arange(len(features))
+        x     = np.arange(len(BASE_FEATURES))
         width = 0.25
 
         fig, ax = plt.subplots(figsize=(9, 4))
@@ -213,7 +253,7 @@ if predict_btn:
         ax.axhline(100, color=VIOLET, linestyle="--", linewidth=0.8, alpha=0.5, label="Moyenne")
 
         ax.set_xticks(x)
-        ax.set_xticklabels([labels[f] for f in features], fontsize=9, color=VIOLET)
+        ax.set_xticklabels([labels[f] for f in BASE_FEATURES], fontsize=9, color=VIOLET)
         ax.set_ylabel("% par rapport à la moyenne", color=VIOLET)
         ax.tick_params(colors=VIOLET)
         ax.legend(fontsize=8, facecolor=CARD, labelcolor=VIOLET)
@@ -230,8 +270,8 @@ if predict_btn:
     with col_table:
         st.subheader("📋 Récapitulatif")
         recap = pd.DataFrame({
-            "Indicateur"  : [labels[f] for f in features],
-            "Client"      : [client[f] for f in features],
-            "Moy. défaut" : [round(moyennes.loc[1, f], 1) for f in features],
+            "Indicateur"  : [labels[f] for f in BASE_FEATURES],
+            "Client"      : client_vals,
+            "Moy. défaut" : [round(moyennes.loc[1, f], 1) for f in BASE_FEATURES],
         })
         st.dataframe(recap, hide_index=True, use_container_width=True)
