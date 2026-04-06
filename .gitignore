@@ -6,3 +6,14 @@ mlflow.db
 Models/.idea/
 anaconda_projects/
 venv_ml/
+.DS_Store
+.idea/
+src/.DS_Store
+src/MLruns/
+Models/*.pkl
+Models/*.png
+Models/*.json
+src/Models/*.png
+src/Models/*.json
+app/Bankia_Logo.svg
+app/Bankia_Logo_Transparent.png
