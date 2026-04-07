@@ -1,5 +1,7 @@
 import pandas as pd
 import joblib
+import sys, os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from feature_engineering import feature_engineering
