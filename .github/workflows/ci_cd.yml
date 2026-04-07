@@ -1,9 +1,9 @@
 name: MLOps Pipeline
 
 env:
-  DOCKER_USER: ${{secrets.DOCKER_USER}}
-  DOCKER_PASSWORD: ${{secrets.DOCKER_PASSWORD}}
-  REPO_NAME: ${{secrets.REPO_NAME}}
+  DOCKER_USER: ${{ secrets.DOCKER_USER }}
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  REPO_NAME: ${{ secrets.REPO_NAME }}
 
 on:
   push:
@@ -33,9 +33,9 @@ jobs:
           pip install -r requirements.txt
 
       - name: Lint
-         run: |
-            pip install pylint
-            pylint --disable=R,C --fail-under=8 src/train.py src/preprocessing.py src/feature_engineering.py
+        run: |
+          pip install pylint
+          pylint --disable=R,C --fail-under=8 src/train.py src/preprocessing.py src/feature_engineering.py
 
   cd_pipeline:
     runs-on: ubuntu-latest
