@@ -1,0 +1,7 @@
+venv_ml/
+MLruns/
+.git/
+.idea/
+__pycache__/
+*.pyc
+.DS_Store
