@@ -47,14 +47,18 @@ jobs:
       - name: Docker login
         run: docker login -u $DOCKER_USER -p $DOCKER_PASSWORD
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Get current date
         id: date
         run: echo "DATE=$(date +'%Y-%m-%d--%H-%M-%S')" >> $GITHUB_ENV
 
-      - name: Build Docker image
-        run: docker buildx build . --file Dockerfile --tag $DOCKER_USER/$REPO_NAME:${{ env.DATE }} --tag $DOCKER_USER/$REPO_NAME:latest --load
-
-      - name: Docker Push
+      - name: Build and Push Docker image
         run: |
-          docker push $DOCKER_USER/$REPO_NAME:${{ env.DATE }}
-          docker push $DOCKER_USER/$REPO_NAME:latest
+          docker buildx build . \
+            --file Dockerfile \
+            --platform linux/amd64,linux/arm64 \
+            --tag $DOCKER_USER/$REPO_NAME:${{ env.DATE }} \
+            --tag $DOCKER_USER/$REPO_NAME:latest \
+            --push

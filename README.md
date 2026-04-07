@@ -5,8 +5,8 @@
 Assurez-vous d'avoir **Docker Desktop** installé sur votre machine.
 
  ```bash 
-docker pull winogradivan/projet-mlops:latest
-docker run -p 8501:8501 winogradivan/projet-mlops:latest
+docker pull asobrino9789/projet-mlops:latest
+docker run -p 8501:8501 asobrino9789/projet-mlops:latest
 ``` 
 
 Puis ouvrir **http://localhost:8501** 
