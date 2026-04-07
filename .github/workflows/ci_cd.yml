@@ -1,4 +1,4 @@
-name: MLOps Pipeline - Bankia
+name: MLOps Pipeline
 
 env:
   DOCKER_USER: ${{secrets.DOCKER_USER}}
