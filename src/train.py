@@ -211,6 +211,7 @@ def run_training():
 
     # 1. Prétraitement
     X_train, X_test, y_train, y_test, scaler = run_preprocessing()
+    joblib.dump(scaler, os.path.join(MODELS_DIR, "scaler.pkl"))
 
     # 2. Définir les modèles
     modeles = definir_modeles()

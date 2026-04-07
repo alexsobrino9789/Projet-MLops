@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 # 🔹 CONFIGURATION
-DATA_PATH = "/Users/ivanwinograd/IdeaProjects/Personnel/MLOps/Projet-MLops/Data/Loan_Data.csv"
+DATA_PATH = "Data/Loan_Data.csv"
 
 
 def charger_donnees(path):
@@ -14,7 +14,7 @@ def charger_donnees(path):
 def feature_engineering(df):
 
     # Suppression de l'identifiant client
-    df = df.drop("customer_id", axis=1)
+    df = df.drop("customer_id", axis=1, errors="ignore")
     print("✅ customer_id supprimé")
 
     # Ratios financiers
